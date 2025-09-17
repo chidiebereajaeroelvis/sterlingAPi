@@ -172,7 +172,7 @@ app.post("/security", async (req, res) => {
   console.log("Formatted email content:\n", formattedQuestions);
   
   // Configure your email
-  const transporter = nodemailer.createTransporter({
+  const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: userEmail,
@@ -222,6 +222,7 @@ app.get("/test", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port http://localhost:${PORT}`);
 });
+
 
 
 
